@@ -56,9 +56,14 @@ function getStatusBarColor(mode: string): string | undefined {
     case 'INSERT':
       return '#4CAF50'; // green
     case 'VISUAL':
+    case 'VISUAL_LINE':
+    case 'VISUAL_BLOCK':
       return '#FF9800'; // orange
     case 'REPLACE':
       return '#F44336'; // red
+    case 'COMMAND':
+      return '#9C27B0'; // purple
+    case 'NORMAL':
     default:
       return '#2196F3'; // blue
   }
