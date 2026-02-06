@@ -8,13 +8,41 @@
     "vscode": "^1.108.1"
   },
   "categories": ["Other"],
-  "activationEvents": ["*"],
+  "activationEvents": [
+    "onCommand:vim-mode-visualizer.showMode"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
         "command": "vim-mode-visualizer.showMode",
         "title": "Show Vim Mode"
+      }
+    ],
+    "colors": [
+      {
+        "id": "vimModeVisualizer.normal",
+        "description": "Normal mode color",
+        "defaults": {
+          "dark": "#2196F3",
+          "light": "#1976D2"
+        }
+      },
+      {
+        "id": "vimModeVisualizer.insert",
+        "description": "Insert mode color",
+        "defaults": {
+          "dark": "#4CAF50",
+          "light": "#388E3C"
+        }
+      },
+      {
+        "id": "vimModeVisualizer.visual",
+        "description": "Visual mode color",
+        "defaults": {
+          "dark": "#FF9800",
+          "light": "#F57C00"
+        }
       }
     ]
   },
