@@ -13,6 +13,16 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "configuration": {
+      "title": "Vim Mode Visualizer",
+      "properties": {
+        "vimModeVisualizer.enableNotification": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show popup notification when Vim mode changes"
+        }
+      }
+    },
     "commands": [
       {
         "command": "vim-mode-visualizer.showMode",

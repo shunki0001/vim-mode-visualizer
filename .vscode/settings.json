@@ -8,6 +8,13 @@
 	},
 	// Turn off tsc task auto detection since we have the necessary tasks as npm scripts
 	"typescript.tsc.autoDetect": "off",
-	"vscode-neovim.neovimExecutablePaths.darwin": "/usr/local/bin/nvim"	
+	"vscode-neovim.neovimExecutablePaths.darwin": "/usr/local/bin/nvim",
+	"workbench.colorCustomizations": {
+		"editorCursor.foreground": "#ef857d",
+		"activityBarBadge.background": "#e9dbb7",
+		"activityBarBadge.foreground": "#262626",
+		"statusBar.background": "#9f5a51",
+		"statusBar.foreground": "#e9dbb7"
+	}
 }
 
