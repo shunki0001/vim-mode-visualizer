@@ -60,7 +60,7 @@ export function activate(context: vscode.ExtensionContext) {
       }
       
       const editor = vscode.window.activeTextEditor;
-      if (editor) {
+      if (editor && isInlineEnabled()) {
         showInlineOnce(
           editor,
           mode,
@@ -297,4 +297,9 @@ function getInlineColor(mode: string): string {
 function isNotificationEnabled(): boolean {
   const config = vscode.workspace.getConfiguration('vimModeVisualizer');
   return config.get<boolean>('enableNotification', true);
+}
+
+function isInlineEnabled(): boolean {
+  const config = vscode.workspace.getConfiguration('vimModeVisualizer');
+  return config.get<boolean>('enableInline', true);
 }

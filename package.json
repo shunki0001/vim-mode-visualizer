@@ -20,6 +20,11 @@
           "type": "boolean",
           "default": true,
           "description": "Show popup notification when Vim mode changes"
+        },
+        "vimModeVisualizer.enableInline": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable inline mode indicator near the cursor"
         }
       }
     },
