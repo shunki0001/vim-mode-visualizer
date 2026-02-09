@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 
 let statusBarItem: vscode.StatusBarItem;
 let lastMode: string | undefined;
+let inlineDecoration: vscode.TextEditorDecorationType | null = null;
+let hideTimer: NodeJS.Timeout | null = null;
 
 // ===== Line Decorations =====
 let normalLineDecoration: vscode.TextEditorDecorationType;
@@ -13,7 +15,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // ===== Status Bar =====
   statusBarItem = vscode.window.createStatusBarItem(
-    vscode.StatusBarAlignment.Righ/t,
+    vscode.StatusBarAlignment.Right,
     100
   );
   statusBarItem.show();
@@ -30,12 +32,12 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   visualLineDecoration = vscode.window.createTextEditorDecorationType({
-    backgroundColor: 'rgba(255, 152, 0, 0.15)',
-    isWholeLine: true,
+    backgroundColor: 'rgba(255, 152, 0, 0.25)',
+    // isWholeLine: true,
   });
 
   visualBlockDecoration = vscode.window.createTextEditorDecorationType({
-  backgroundColor: 'rgba(255, 152, 0, 0.12)',
+  backgroundColor: 'rgba(255, 152, 0, 0.15)',
 
   before: {
     contentText: '▌',
@@ -48,10 +50,26 @@ export function activate(context: vscode.ExtensionContext) {
   const showMode = vscode.commands.registerCommand(
     'vim-mode-visualizer.showMode',
     (mode: string) => {
-      if (mode === lastMode) return;
+      if (mode === lastMode) {
+        return;
+      }
       lastMode = mode;
 
-      vscode.window.showInformationMessage(getPopupText(mode));
+      if (isNotificationEnabled()) {
+        vscode.window.showInformationMessage(getPopupText(mode));
+      }
+      
+      const editor = vscode.window.activeTextEditor;
+      if (editor && isInlineEnabled()) {
+        showInlineOnce(
+          editor,
+          mode,
+          getInlineColor(mode),
+          300
+        );
+      }
+
+      // vscode.window.showInformationMessage(getPopupText(mode));
       updateLineHighlight(mode);
 
       statusBarItem.text = `$(keyboard) ${mode}`;
@@ -63,7 +81,9 @@ export function activate(context: vscode.ExtensionContext) {
   // ===== Selection Change (ONLY ONCE) =====
   const selectionListener =
     vscode.window.onDidChangeTextEditorSelection(() => {
-      if (!lastMode) return;
+      if (!lastMode) {
+        return;
+      }
       updateLineHighlight(lastMode);
     });
 
@@ -76,6 +96,15 @@ export function activate(context: vscode.ExtensionContext) {
     visualLineDecoration,
     visualBlockDecoration
   );
+
+  const configListener =
+    vscode.workspace.onDidChangeConfiguration(e => {
+      if (e.affectsConfiguration('vimModeVisualizer.enableNotification')) {
+        console.log('Notification setting changed');
+      }
+    });
+
+  context.subscriptions.push(configListener);
 }
 
 export function deactivate() {
@@ -91,7 +120,9 @@ export function deactivate() {
 
 function updateLineHighlight(mode: string) {
   const editor = vscode.window.activeTextEditor;
-  if (!editor) return;
+  if (!editor) {
+    return;
+  }
 
   // Clear all
   editor.setDecorations(normalLineDecoration, []);
@@ -100,7 +131,7 @@ function updateLineHighlight(mode: string) {
   editor.setDecorations(visualBlockDecoration, []);
 
   // VISUAL BLOCK → vertical band
-  if (mode === 'VISUAL_BLOCK') {
+  if (mode === 'VISUAL_BLOCK' || mode === 'VISUAL_LINE') {
     editor.setDecorations(
       visualBlockDecoration,
       getVisualBlockRanges(editor)
@@ -199,4 +230,76 @@ function getStatusBarBackground(mode: string): vscode.ThemeColor {
     default:
       return new vscode.ThemeColor('vimModeVisualizer.normal');
   }
+}
+
+function getVisualSelectionRanges(
+  editor: vscode.TextEditor
+): vscode.Range[] {
+  return editor.selections.map(sel => sel);
+}
+
+function createInlineDecoration(color: string, label: string) {
+  if (inlineDecoration) {
+    inlineDecoration.dispose();
+  }
+
+  inlineDecoration = vscode.window.createTextEditorDecorationType({
+    after: {
+      contentText: ` ${label}`,
+      color,
+      margin: '0 0 0 1rem',
+      fontStyle: 'italic',
+    },
+  });
+
+  return inlineDecoration;
+}
+
+function showInlineOnce(
+  editor: vscode.TextEditor,
+  label: string,
+  color: string,
+  duration: 300
+) {
+  if (hideTimer) {
+    clearTimeout(hideTimer);
+  }
+
+  const decoration = createInlineDecoration(color, label);
+
+  const line = editor.selection.active.line;
+  const range = new vscode.Range(line, 0, line, 0);
+
+  editor.setDecorations(decoration, [range]);
+
+  hideTimer = setTimeout(() => {
+    decoration.dispose();
+    inlineDecoration = null;
+  }, duration);
+}
+
+function getInlineColor(mode: string): string {
+  switch (mode) {
+    case 'INSERT':
+      return '#4CAF50';
+    case 'VISUAL':
+    case 'VISUAL_LINE':
+      return '#FF9800';
+    case 'VISUAL_BLOCK':
+      return '#FFB74D';
+    case 'REPLACE':
+      return '#F44336';
+    default:
+      return '$90A4AE';
+  }
+}
+
+function isNotificationEnabled(): boolean {
+  const config = vscode.workspace.getConfiguration('vimModeVisualizer');
+  return config.get<boolean>('enableNotification', true);
+}
+
+function isInlineEnabled(): boolean {
+  const config = vscode.workspace.getConfiguration('vimModeVisualizer');
+  return config.get<boolean>('enableInline', true);
 }
