@@ -7,11 +7,12 @@
   "engines": {
     "vscode": "^1.108.1"
   },
+  "icon": "images/icon.png",
   "categories": [
     "Other"
   ],
   "activationEvents": [
-    "onCommand:vim-mode-visualizer.showMode"
+    "onStartupFinished"
   ],
   "main": "./out/extension.js",
   "contributes": {
