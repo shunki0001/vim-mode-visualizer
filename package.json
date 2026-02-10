@@ -3,11 +3,13 @@
   "publisher": "shun0001",
   "displayName": "vim-mode-visualizer",
   "description": "vim-mode-visualizer",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.108.1"
   },
-  "categories": ["Other"],
+  "categories": [
+    "Other"
+  ],
   "activationEvents": [
     "onCommand:vim-mode-visualizer.showMode"
   ],
