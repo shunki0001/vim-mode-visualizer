@@ -1,7 +1,9 @@
 import * as vscode from 'vscode';
+import { MODE_CONFIG, VimMode } from './mode';
+import { DecorationManager } from './decorationManager';
 
 let statusBarItem: vscode.StatusBarItem;
-let lastMode: string | undefined;
+let lastMode: VimMode | undefined;
 let inlineDecoration: vscode.TextEditorDecorationType | null = null;
 let hideTimer: NodeJS.Timeout | null = null;
 
@@ -10,6 +12,36 @@ let normalLineDecoration: vscode.TextEditorDecorationType;
 let insertLineDecoration: vscode.TextEditorDecorationType;
 let visualLineDecoration: vscode.TextEditorDecorationType;
 let visualBlockDecoration: vscode.TextEditorDecorationType;
+
+type HighlightStrategy = (editor: vscode.TextEditor) => void
+
+const decorations = new DecorationManager();
+
+const highlightStrategies: Record<VimMode, HighlightStrategy> = {
+  [VimMode.NORMAL]: editor => {
+    decorations.applyCursorLine(editor, decorations.normalLine);
+  },
+
+  [VimMode.INSERT]: editor => {
+    decorations.applyCursorLine(editor, decorations.insertLine);
+  },
+
+  [VimMode.VISUAL]: editor => {
+    decorations.applyVisualLine(editor);
+  },
+
+  [VimMode.VISUAL_LINE]: editor => {
+    decorations.applyVisualLine(editor);
+  },
+
+  [VimMode.VISUAL_BLOCK]: editor => {
+    decorations.applyVisualBlock(editor);
+  },
+
+  [VimMode.REPLACE]: editor => {
+    decorations.applyCursorLine(editor, decorations.normalLine);
+  },
+};
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -33,7 +65,6 @@ export function activate(context: vscode.ExtensionContext) {
 
   visualLineDecoration = vscode.window.createTextEditorDecorationType({
     backgroundColor: 'rgba(255, 152, 0, 0.25)',
-    // isWholeLine: true,
   });
 
   visualBlockDecoration = vscode.window.createTextEditorDecorationType({
@@ -50,13 +81,16 @@ export function activate(context: vscode.ExtensionContext) {
   const showMode = vscode.commands.registerCommand(
     'vim-mode-visualizer.showMode',
     (mode: string) => {
-      if (mode === lastMode) {
+      const vimMode = toVimMode(mode);
+      if (!vimMode) {
         return;
       }
-      lastMode = mode;
+      lastMode = vimMode;
+
+      const config = MODE_CONFIG[vimMode];
 
       if (isNotificationEnabled()) {
-        vscode.window.showInformationMessage(getPopupText(mode));
+        vscode.window.showInformationMessage(config.popupText);
       }
       
       const editor = vscode.window.activeTextEditor;
@@ -64,16 +98,17 @@ export function activate(context: vscode.ExtensionContext) {
         showInlineOnce(
           editor,
           mode,
-          getInlineColor(mode),
-          300
-        );
+          {
+            background: config.inlineBackground,
+            foreground: config.inlineTextColor,
+          },
+          300);
       }
 
-      // vscode.window.showInformationMessage(getPopupText(mode));
-      updateLineHighlight(mode);
+      updateLineHighlight(vimMode);
 
       statusBarItem.text = `$(keyboard) ${mode}`;
-      statusBarItem.backgroundColor = getStatusBarBackground(mode);
+      statusBarItem.backgroundColor = config.statusBarColor;
       statusBarItem.tooltip = `Current Vim Mode: ${mode}`;
     }
   );
@@ -95,7 +130,7 @@ export function activate(context: vscode.ExtensionContext) {
     insertLineDecoration,
     visualLineDecoration,
     visualBlockDecoration
-  );
+  );  
 
   const configListener =
     vscode.workspace.onDidChangeConfiguration(e => {
@@ -108,137 +143,25 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
-  normalLineDecoration.dispose();
-  insertLineDecoration.dispose();
-  visualLineDecoration.dispose();
-  visualBlockDecoration.dispose();
+  decorations.dispose();
 }
 
-// =======================================================
 // ===================== Helpers ==========================
-// =======================================================
 
-function updateLineHighlight(mode: string) {
+function updateLineHighlight(mode: VimMode) {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
     return;
   }
 
   // Clear all
-  editor.setDecorations(normalLineDecoration, []);
-  editor.setDecorations(insertLineDecoration, []);
-  editor.setDecorations(visualLineDecoration, []);
-  editor.setDecorations(visualBlockDecoration, []);
+  decorations.clear(editor);
 
-  // VISUAL BLOCK → vertical band
-  if (mode === 'VISUAL_BLOCK' || mode === 'VISUAL_LINE') {
-    editor.setDecorations(
-      visualBlockDecoration,
-      getVisualBlockRanges(editor)
-    );
-    return;
-  }
-
-  // VISUAL / VISUAL_LINE → whole selected lines
-  if (isVisualMode(mode)) {
-    editor.setDecorations(
-      visualLineDecoration,
-      getSelectedLineRanges(editor)
-    );
-    return;
-  }
-
-  // NORMAL / INSERT → cursor line
-  const line = editor.selection.active.line;
-  const range = editor.document.lineAt(line).range;
-
-  if (mode === 'INSERT') {
-    editor.setDecorations(insertLineDecoration, [range]);
-  } else {
-    editor.setDecorations(normalLineDecoration, [range]);
-  }
+  const strategy = highlightStrategies[mode];
+  strategy?.(editor);
 }
 
-function isVisualMode(mode: string): boolean {
-  return (
-    mode === 'VISUAL' ||
-    mode === 'VISUAL_LINE' ||
-    mode === 'VISUAL_BLOCK'
-  );
-}
-
-function getSelectedLineRanges(
-  editor: vscode.TextEditor
-): vscode.Range[] {
-  const ranges: vscode.Range[] = [];
-
-  for (const sel of editor.selections) {
-    const start = Math.min(sel.start.line, sel.end.line);
-    const end = Math.max(sel.start.line, sel.end.line);
-
-    for (let line = start; line <= end; line++) {
-      ranges.push(editor.document.lineAt(line).range);
-    }
-  }
-  return ranges;
-}
-
-function getVisualBlockRanges(
-  editor: vscode.TextEditor
-): vscode.Range[] {
-  const ranges: vscode.Range[] = [];
-
-  for (const sel of editor.selections) {
-    const startLine = Math.min(sel.start.line, sel.end.line);
-    const endLine = Math.max(sel.start.line, sel.end.line);
-    const startCol = Math.min(sel.start.character, sel.end.character);
-    const endCol = Math.max(sel.start.character, sel.end.character);
-
-    for (let line = startLine; line <= endLine; line++) {
-      ranges.push(
-        new vscode.Range(line, startCol, line, endCol)
-      );
-    }
-  }
-  return ranges;
-}
-
-function getPopupText(mode: string): string {
-  switch (mode) {
-    case 'INSERT':
-      return '🟢 ▶ INSERT MODE ◀';
-    case 'VISUAL':
-    case 'VISUAL_LINE':
-      return '🟧 ▶ VISUAL MODE ◀';
-    case 'VISUAL_BLOCK':
-      return '🟧 ▶ VISUAL BLOCK ◀';
-    case 'REPLACE':
-      return '🔴 ▶ REPLACE MODE ◀';
-    default:
-      return '🔵 ▶ NORMAL MODE ◀';
-  }
-}
-
-function getStatusBarBackground(mode: string): vscode.ThemeColor {
-  switch (mode) {
-    case 'INSERT':
-      return new vscode.ThemeColor('vimModeVisualizer.insert');
-    case 'VISUAL':
-    case 'VISUAL_LINE':
-    case 'VISUAL_BLOCK':
-      return new vscode.ThemeColor('vimModeVisualizer.visual');
-    default:
-      return new vscode.ThemeColor('vimModeVisualizer.normal');
-  }
-}
-
-function getVisualSelectionRanges(
-  editor: vscode.TextEditor
-): vscode.Range[] {
-  return editor.selections.map(sel => sel);
-}
-
-function createInlineDecoration(color: string, label: string) {
+function createInlineDecoration(label: string, colors: { background: string; foreground: string }) {
   if (inlineDecoration) {
     inlineDecoration.dispose();
   }
@@ -246,7 +169,10 @@ function createInlineDecoration(color: string, label: string) {
   inlineDecoration = vscode.window.createTextEditorDecorationType({
     after: {
       contentText: ` ${label}`,
-      color,
+      color: colors.foreground,
+      backgroundColor: colors.background !== 'transparent'
+        ? colors.background
+        :undefined,
       margin: '0 0 0 1rem',
       fontStyle: 'italic',
     },
@@ -258,17 +184,23 @@ function createInlineDecoration(color: string, label: string) {
 function showInlineOnce(
   editor: vscode.TextEditor,
   label: string,
-  color: string,
-  duration: 300
+  colors: { background: string; foreground: string },
+  duration: number
 ) {
   if (hideTimer) {
     clearTimeout(hideTimer);
   }
 
-  const decoration = createInlineDecoration(color, label);
+  const decoration = createInlineDecoration(label, colors);
 
   const line = editor.selection.active.line;
-  const range = new vscode.Range(line, 0, line, 0);
+  const lineText = editor.document.lineAt(line).text;
+  const endChar = lineText.length;
+
+  const range = new vscode.Range(
+    new vscode.Position(line, endChar),
+    new vscode.Position(line, endChar),
+  );
 
   editor.setDecorations(decoration, [range]);
 
@@ -278,21 +210,6 @@ function showInlineOnce(
   }, duration);
 }
 
-function getInlineColor(mode: string): string {
-  switch (mode) {
-    case 'INSERT':
-      return '#4CAF50';
-    case 'VISUAL':
-    case 'VISUAL_LINE':
-      return '#FF9800';
-    case 'VISUAL_BLOCK':
-      return '#FFB74D';
-    case 'REPLACE':
-      return '#F44336';
-    default:
-      return '$90A4AE';
-  }
-}
 
 function isNotificationEnabled(): boolean {
   const config = vscode.workspace.getConfiguration('vimModeVisualizer');
@@ -302,4 +219,19 @@ function isNotificationEnabled(): boolean {
 function isInlineEnabled(): boolean {
   const config = vscode.workspace.getConfiguration('vimModeVisualizer');
   return config.get<boolean>('enableInline', true);
+}
+
+function highlightCursorLine(
+  editor: vscode.TextEditor,
+  decoration: vscode.TextEditorDecorationType
+) {
+  const line = editor.selection.active.line;
+  const range = editor.document.lineAt(line).range;
+  editor.setDecorations(decoration, [range]);
+}
+
+function toVimMode(value: string): VimMode | null {
+  return Object.values(VimMode).includes(value as VimMode)
+    ? (value as VimMode)
+    : null;
 }
