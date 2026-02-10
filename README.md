@@ -1,17 +1,22 @@
 # Vim Mode Visualizer
 
-This VS Code extension displays the current Vim mode
-when using Neovim via the vscode-neovim extension.
+Visualizes current Vim mode (NORMAL / INSERT / VISUAL) inline in the editor.
 
 ## Features
+- Inline Vim mode indicator near the cursor
+- Optional popup notification
+- Customizable colors per mode
 
-- Shows current Vim mode (normal / insert / visual)
-- Works with vscode-neovim
+## Requirements
+- VSCodeVim extension
 
-## Usage
+## Extension Settings
+- `vimModeVisualizer.enableInline`
+- `vimModeVisualizer.enableNotification`
 
-Install this extension and use it together with `vscode-neovim`.
+## Known Issues
+- None
 
-## License
-
-SH
+## Release Notes
+### 0.0.3
+- Fix activation issue

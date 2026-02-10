@@ -8,8 +8,20 @@
     "vscode": "^1.108.1"
   },
   "icon": "images/icon.png",
+  "license": "MIT",
+  "keywords": [
+    "vim",
+    "vscodevim",
+    "cursor",
+    "visualizer",
+    "mode"
+  ],
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  },
   "categories": [
-    "Other"
+    "Other", "Snippets"
   ],
   "activationEvents": [
     "onStartupFinished"
