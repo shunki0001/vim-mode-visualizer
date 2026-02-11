@@ -1,5 +1,6 @@
 .vscode/**
 .vscode-test/**
+out/**
 src/**
 .gitignore
 .yarnrc
@@ -13,3 +14,4 @@ node_modules/**
 .git/**
 *.map
 tsconfig.json
+esbuild.js
