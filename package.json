@@ -85,9 +85,12 @@
     "build": "node esbuild.js",
     "watch": "node esbuild.js --watch",
     "vscode:prepublish": "npm run build",
-    "compile": "tsc -p ./"
+    "compile": "tsc -p ./",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^25.2.3",
     "@types/vscode": "^1.108.1",
     "esbuild": "^0.27.3",
     "typescript": "^5.9.3"
