@@ -1,11 +1,10 @@
 import * as vscode from 'vscode';
 import { MODE_CONFIG, VimMode } from './mode';
 import { DecorationManager } from './decorationManager';
+import { ConfigService } from './configService';
 
 let statusBarItem: vscode.StatusBarItem;
 let lastMode: VimMode | undefined;
-let inlineDecoration: vscode.TextEditorDecorationType | null = null;
-let hideTimer: NodeJS.Timeout | null = null;
 
 // ===== Line Decorations =====
 let normalLineDecoration: vscode.TextEditorDecorationType;
@@ -16,32 +15,8 @@ let visualBlockDecoration: vscode.TextEditorDecorationType;
 type HighlightStrategy = (editor: vscode.TextEditor) => void
 
 const decorations = new DecorationManager();
+const configService = new ConfigService();
 
-const highlightStrategies: Record<VimMode, HighlightStrategy> = {
-  [VimMode.NORMAL]: editor => {
-    decorations.applyCursorLine(editor, decorations.normalLine);
-  },
-
-  [VimMode.INSERT]: editor => {
-    decorations.applyCursorLine(editor, decorations.insertLine);
-  },
-
-  [VimMode.VISUAL]: editor => {
-    decorations.applyVisualLine(editor);
-  },
-
-  [VimMode.VISUAL_LINE]: editor => {
-    decorations.applyVisualLine(editor);
-  },
-
-  [VimMode.VISUAL_BLOCK]: editor => {
-    decorations.applyVisualBlock(editor);
-  },
-
-  [VimMode.REPLACE]: editor => {
-    decorations.applyCursorLine(editor, decorations.normalLine);
-  },
-};
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -89,13 +64,13 @@ export function activate(context: vscode.ExtensionContext) {
 
       const config = MODE_CONFIG[vimMode];
 
-      if (isNotificationEnabled()) {
+      if (configService.isNotificationEnabled()) {
         vscode.window.showInformationMessage(config.popupText);
       }
       
       const editor = vscode.window.activeTextEditor;
-      if (editor && isInlineEnabled()) {
-        showInlineOnce(
+      if (editor && configService.isInlineEnabled()) {
+        decorations.showInlineOnce(
           editor,
           mode,
           {
@@ -154,80 +129,7 @@ function updateLineHighlight(mode: VimMode) {
     return;
   }
 
-  // Clear all
-  decorations.clear(editor);
-
-  const strategy = highlightStrategies[mode];
-  strategy?.(editor);
-}
-
-function createInlineDecoration(label: string, colors: { background: string; foreground: string }) {
-  if (inlineDecoration) {
-    inlineDecoration.dispose();
-  }
-
-  inlineDecoration = vscode.window.createTextEditorDecorationType({
-    after: {
-      contentText: ` ${label}`,
-      color: colors.foreground,
-      backgroundColor: colors.background !== 'transparent'
-        ? colors.background
-        :undefined,
-      margin: '0 0 0 1rem',
-      fontStyle: 'italic',
-    },
-  });
-
-  return inlineDecoration;
-}
-
-function showInlineOnce(
-  editor: vscode.TextEditor,
-  label: string,
-  colors: { background: string; foreground: string },
-  duration: number
-) {
-  if (hideTimer) {
-    clearTimeout(hideTimer);
-  }
-
-  const decoration = createInlineDecoration(label, colors);
-
-  const line = editor.selection.active.line;
-  const lineText = editor.document.lineAt(line).text;
-  const endChar = lineText.length;
-
-  const range = new vscode.Range(
-    new vscode.Position(line, endChar),
-    new vscode.Position(line, endChar),
-  );
-
-  editor.setDecorations(decoration, [range]);
-
-  hideTimer = setTimeout(() => {
-    decoration.dispose();
-    inlineDecoration = null;
-  }, duration);
-}
-
-
-function isNotificationEnabled(): boolean {
-  const config = vscode.workspace.getConfiguration('vimModeVisualizer');
-  return config.get<boolean>('enableNotification', true);
-}
-
-function isInlineEnabled(): boolean {
-  const config = vscode.workspace.getConfiguration('vimModeVisualizer');
-  return config.get<boolean>('enableInline', true);
-}
-
-function highlightCursorLine(
-  editor: vscode.TextEditor,
-  decoration: vscode.TextEditorDecorationType
-) {
-  const line = editor.selection.active.line;
-  const range = editor.document.lineAt(line).range;
-  editor.setDecorations(decoration, [range]);
+  decorations.applyModeHighlight(editor, mode);
 }
 
 function toVimMode(value: string): VimMode | null {

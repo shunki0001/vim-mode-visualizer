@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { getSelectedLineRanges, getVisualBlockRanges } from './ranges';
+import { VimMode } from './mode';
 
 type InlineColors = {
     background: string
@@ -8,31 +9,50 @@ type InlineColors = {
 
 export class DecorationManager {
     private inlineDecoration?: vscode.TextEditorDecorationType;
+    private hideTimer?: NodeJS.Timeout;
 
     showInlineOnce(
         editor: vscode.TextEditor,
+        label: string,
         colors: InlineColors,
         duration: number,
     ) {
         this.inlineDecoration?.dispose();
+        if (this.hideTimer) {
+            clearTimeout(this.hideTimer);
+        }
 
         this.inlineDecoration =
             vscode.window.createTextEditorDecorationType({
-                backgroundColor: colors.background,
-                color: colors.foreground,
+                after: {
+                    contentText: ` ${label}`,
+                    color: colors.foreground,
+                    backgroundColor:
+                        colors.background !== 'transparent'
+                            ? colors.background
+                            : undefined,
+                    margin: '0 0 0 1rem',
+                    fontStyle: 'italic',
+                },
+                // backgroundColor: colors.background,
+                // color: colors.foreground,
             });
+        
+        const line = editor.selection.active.line;
+        const endChar = editor.document.lineAt(line).text.length;
 
-        editor.setDecorations(this.inlineDecoration, [
-            new vscode.Range(
-                editor.selection.active,
-                editor.selection.active,
-            ),
-        ]);
+        const range = new vscode.Range(
+            new vscode.Position(line, endChar),
+            new vscode.Position(line, endChar)
+        );
 
-        setTimeout(() => {
+        editor.setDecorations(this.inlineDecoration, [range]);
+
+        this.hideTimer = setTimeout(() => {
             this.inlineDecoration?.dispose();
             this.inlineDecoration = undefined;
         }, duration);
+
     }
 
     readonly normalLine: vscode.TextEditorDecorationType;
@@ -100,5 +120,29 @@ export class DecorationManager {
         this.insertLine.dispose();
         this.visualLine.dispose();
         this.visualBlock.dispose();
+    }
+
+    applyModeHighlight(editor: vscode.TextEditor, mode: VimMode) {
+        this.clear(editor);
+
+        switch(mode) {
+            case VimMode.NORMAL:
+            case VimMode.REPLACE:
+                this.applyCursorLine(editor, this.normalLine);
+                break;
+
+            case VimMode.INSERT:
+                this.applyCursorLine(editor, this.insertLine);
+                break;
+
+            case VimMode.VISUAL:
+            case VimMode.VISUAL_LINE:
+                this.applyVisualLine(editor);
+                break;
+
+            case VimMode.VISUAL_BLOCK:
+                this.applyVisualBlock(editor);
+                break;
+        }
     }
 }
