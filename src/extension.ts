@@ -1,10 +1,8 @@
 import * as vscode from 'vscode';
-import { MODE_CONFIG, VimMode } from './mode';
+import { VimMode } from './mode';
 import { DecorationManager } from './decorationManager';
 import { ConfigService } from './configService';
-
-let statusBarItem: vscode.StatusBarItem;
-let lastMode: VimMode | undefined;
+import { ModeController } from './modeController';
 
 // ===== Line Decorations =====
 let normalLineDecoration: vscode.TextEditorDecorationType;
@@ -12,20 +10,25 @@ let insertLineDecoration: vscode.TextEditorDecorationType;
 let visualLineDecoration: vscode.TextEditorDecorationType;
 let visualBlockDecoration: vscode.TextEditorDecorationType;
 
-type HighlightStrategy = (editor: vscode.TextEditor) => void
-
 const decorations = new DecorationManager();
-const configService = new ConfigService();
-
 
 export function activate(context: vscode.ExtensionContext) {
 
   // ===== Status Bar =====
-  statusBarItem = vscode.window.createStatusBarItem(
+  const statusBar = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,
     100
   );
-  statusBarItem.show();
+  statusBar.show();
+
+  const decorations = new DecorationManager();
+  const configService = new ConfigService();
+
+  const modeController = new ModeController(
+    statusBar,
+    decorations,
+    configService
+  );
 
   // ===== Decorations =====
   normalLineDecoration = vscode.window.createTextEditorDecorationType({
@@ -60,52 +63,22 @@ export function activate(context: vscode.ExtensionContext) {
       if (!vimMode) {
         return;
       }
-      lastMode = vimMode;
 
-      const config = MODE_CONFIG[vimMode];
-
-      if (configService.isNotificationEnabled()) {
-        vscode.window.showInformationMessage(config.popupText);
-      }
-      
-      const editor = vscode.window.activeTextEditor;
-      if (editor && configService.isInlineEnabled()) {
-        decorations.showInlineOnce(
-          editor,
-          mode,
-          {
-            background: config.inlineBackground,
-            foreground: config.inlineTextColor,
-          },
-          300);
-      }
-
-      updateLineHighlight(vimMode);
-
-      statusBarItem.text = `$(keyboard) ${mode}`;
-      statusBarItem.backgroundColor = config.statusBarColor;
-      statusBarItem.tooltip = `Current Vim Mode: ${mode}`;
+      modeController.setMode(vimMode);
     }
   );
 
   // ===== Selection Change (ONLY ONCE) =====
   const selectionListener =
     vscode.window.onDidChangeTextEditorSelection(() => {
-      if (!lastMode) {
-        return;
-      }
-      updateLineHighlight(lastMode);
+      modeController.handleSelectionChange();
     });
 
   context.subscriptions.push(
     showMode,
     selectionListener,
-    statusBarItem,
-    normalLineDecoration,
-    insertLineDecoration,
-    visualLineDecoration,
-    visualBlockDecoration
-  );  
+    statusBar
+  );
 
   const configListener =
     vscode.workspace.onDidChangeConfiguration(e => {
@@ -122,15 +95,6 @@ export function deactivate() {
 }
 
 // ===================== Helpers ==========================
-
-function updateLineHighlight(mode: VimMode) {
-  const editor = vscode.window.activeTextEditor;
-  if (!editor) {
-    return;
-  }
-
-  decorations.applyModeHighlight(editor, mode);
-}
 
 function toVimMode(value: string): VimMode | null {
   return Object.values(VimMode).includes(value as VimMode)
