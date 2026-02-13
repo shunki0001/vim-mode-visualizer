@@ -3,16 +3,24 @@ import { MODE_CONFIG, VimMode } from './mode';
 import { DecorationManager } from './decorationManager';
 import { ConfigService } from './configService';
 
-export class ModeController {
+export class ModeController implements vscode.Disposable {
     private currentMode?: VimMode;
+    private disposables: vscode.Disposable[] = [];
 
     constructor(
         private statusBar: vscode.StatusBarItem,
         private decorations: DecorationManager,
         private config: ConfigService
-    ) {}
+    ) {
+        this.disposables.push(statusBar);
+    }
 
-    setMode(mode: VimMode) {
+    setMode(modeValue: string) {
+        const mode = this.parseMode(modeValue);
+        if (!mode) {
+            return;
+        }
+
         this.currentMode = mode;
 
         const editor = vscode.window.activeTextEditor;
@@ -62,5 +70,16 @@ export class ModeController {
         }
 
         this.decorations.applyModeHighlight(editor, this.currentMode);
+    }
+
+    dispose() {
+        this.disposables.forEach(d => d.dispose());
+        this.disposables = [];
+    }
+
+    private parseMode(value: string): VimMode | null {
+        return Object.values(VimMode).includes(value as VimMode)
+            ? (value as VimMode)
+            : null;
     }
 }
