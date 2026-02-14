@@ -2,17 +2,24 @@ import * as vscode from 'vscode';
 import { MODE_CONFIG, VimMode } from './mode';
 import { DecorationManager } from './decorationManager';
 import { ConfigService } from './configService';
+import { scrypt } from 'crypto';
 
 export class ModeController implements vscode.Disposable {
     private currentMode?: VimMode;
     private disposables: vscode.Disposable[] = [];
+    private statusBar: vscode.StatusBarItem;
 
     constructor(
-        private statusBar: vscode.StatusBarItem,
         private decorations: DecorationManager,
         private config: ConfigService
     ) {
-        this.disposables.push(statusBar);
+        this.statusBar = vscode.window.createStatusBarItem(
+            vscode.StatusBarAlignment.Right,
+            100
+        );
+
+        this.statusBar.show();
+        this.disposables.push(this.statusBar);
     }
 
     setMode(modeValue: string) {
