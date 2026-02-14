@@ -3,7 +3,7 @@
   "publisher": "shun0001",
   "displayName": "vim-mode-visualizer",
   "description": "vim-mode-visualizer",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "engines": {
     "vscode": "^1.108.1"
   },
