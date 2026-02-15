@@ -27,6 +27,7 @@
   "activationEvents": [
     "onStartupFinished"
   ],
+  
   "main": "./dist/extension.js",
   "contributes": {
     "configuration": {
@@ -41,6 +42,11 @@
           "type": "boolean",
           "default": true,
           "description": "Enable inline mode indicator near the cursor"
+        },
+        "vimModeVisualizer.relativeLinerNumbers": {
+          "type": "boolean",
+          "default": true,
+          "definitions": "Show relative line numbers"
         }
       }
     },

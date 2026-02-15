@@ -10,4 +10,10 @@ export class ConfigService {
     isInlineEnabled() {
         return this.config.get<boolean>('enableInline', true);
     }
+
+    isRelativeLineEnabled(): boolean {
+        return vscode.workspace
+            .getConfiguration('vimModeVisualizer')
+            .get('relativeLineNumbers', true);
+    }
 }
