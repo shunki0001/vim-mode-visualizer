@@ -25,7 +25,7 @@
     "Snippets"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "*"
   ],
   
   "main": "./dist/extension.js",
@@ -47,6 +47,41 @@
           "type": "boolean",
           "default": true,
           "definitions": "Show relative line numbers"
+        },
+        "vimModeVisualizer.font.color.absolute": {
+          "type": "string",
+          "default": "#999999",
+          "markdownDescription": "Font color of absolute line numbers. Examples: `#999999`, `rgb(128,128,128)`"
+        },
+        "vimModeVisualizer.font.color.relative": {
+          "type": "string",
+          "default": "#858585",
+          "markdownDescription": "Font color of relative line numbers. Examples: `#858585`, `rgb(100,100,100)`"
+        },
+        "vimModeVisualizer.font.weight": {
+          "type": "string",
+          "default": "bold",
+          "markdownDescription": "Font boldness. Examples: `normal`, `bold`, `600`"
+        },
+        "vimModeVisualizer.font.family": {
+          "type": "string",
+          "default": "Menlo, Monaco, 'Courier New', monospace",
+          "markdownDescription": "Font family for line numbers"
+        },
+        "vimModeVisualizer.text.width": {
+          "type": "string",
+          "default": "50",
+          "markdownDescription": "Text width for each line number (SVG textLength attribute)"
+        },
+        "vimModeVisualizer.text.height": {
+          "type": "string",
+          "default": "55",
+          "markdownDescription": "Font size for line numbers (in pixels)"
+        },
+        "vimModeVisualizer.delay": {
+          "type": "number",
+          "default": 50,
+          "markdownDescription": "Delay in milliseconds for throttling line number updates"
         }
       }
     },

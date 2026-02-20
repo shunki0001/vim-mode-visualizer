@@ -14,6 +14,15 @@ export function activate(context: vscode.ExtensionContext) {
     true,
     vscode.ConfigurationTarget.Global
   );
+  
+  // ハイブリッドモード: 標準行番号を無効化してカスタムSVGで表示
+  vscode.workspace.getConfiguration().update(
+    'editor.lineNumbers',
+    'off',
+    vscode.ConfigurationTarget.Workspace
+  ).then(() => {
+    console.log('Hybrid mode enabled');
+  });
 
   const decorations = new DecorationManager();
   const configService = new ConfigService();
@@ -34,7 +43,6 @@ export function activate(context: vscode.ExtensionContext) {
   // ===== Selection Change (ONLY ONCE) =====
   const selectionListener =
     vscode.window.onDidChangeTextEditorSelection((event) => {
-      console.log('selection changed');
       const editor = event.textEditor;
       decorations.showRelativeLineNumbers(editor);
       modeController?.handleSelectionChange();
@@ -49,7 +57,6 @@ export function activate(context: vscode.ExtensionContext) {
 
   const visibleRangesListener =
     vscode.window.onDidChangeTextEditorVisibleRanges((event) => {
-      console.log('visible ranges changed');
       const editor = event.textEditor;
       decorations.showRelativeLineNumbers(editor);
     });

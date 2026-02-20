@@ -13,7 +13,7 @@ export class DecorationManager {
     private hideTimer?: NodeJS.Timeout;
 
     private decorTypeMap: Map<vscode.TextEditor, Map<number, vscode.TextEditorDecorationType>>;
-    private decorNumMap: Map<vscode.TextEditor, Map<number, number>>;
+    private decorNumMap: Map<vscode.TextEditor, Map<number, string | number>>;
     private updateDecorDebounced!: (editor: vscode.TextEditor) => void;
     private readonly NO_DECOR = -1;
 
@@ -26,6 +26,23 @@ export class DecorationManager {
         this.decorTypeMap = new Map();
         this.decorNumMap = new Map();
         this.initializeUpdateDecorDebounced();
+
+        // 設定変更時にdebounce再初期化
+        vscode.workspace.onDidChangeConfiguration((e) => {
+            if (e.affectsConfiguration('vimModeVisualizer.delay') ||
+                e.affectsConfiguration('vimModeVisualizer.font') ||
+                e.affectsConfiguration('vimModeVisualizer.text')) {
+                this.initializeUpdateDecorDebounced();
+                // 全エディタの装飾をクリアして再生成
+                this.decorTypeMap.forEach((decorMap) => {
+                    decorMap.forEach((decor) => {
+                        decor.dispose();
+                    });
+                });
+                this.decorTypeMap.clear();
+                this.decorNumMap.clear();
+            }
+        });
 
         this.normalLine = vscode.window.createTextEditorDecorationType({
             backgroundColor: 'rgba(33, 150, 243, 0.15)',
@@ -161,9 +178,12 @@ export class DecorationManager {
     // ========================
 
     private initializeUpdateDecorDebounced() {
-        const delayTime = 50;
+        const delayTime = vscode.workspace
+            .getConfiguration()
+            .get('vimModeVisualizer.delay', 50);
+        // ハイブリッドモード用にupdateHybridLineNumbersをデフォルトに
         this.updateDecorDebounced = this.debounce(
-            this.updateRelativeLineNumbers.bind(this),
+            this.updateHybridLineNumbers.bind(this),
             delayTime
         );
     }
@@ -222,6 +242,98 @@ export class DecorationManager {
             .padStart(3, '\u00A0')}</text></svg>`;
     }
 
+    private createHybridSvgUri(absLine: number, relDist: number): string {
+        // 参考: vscode-double-line-numbers のアプローチを採用
+        // 1つの100x100セル内に2つのテキストを左右に配置
+        
+        const width = 100;
+        const height = 100;
+        const lengthAdjust = 'spacingAndGlyphs';
+        const textAnchor = 'middle';
+        const dominantBaseline = 'central';
+        
+        // 設定から値を取得
+        const colorAbsolute = vscode.workspace
+            .getConfiguration()
+            .get('vimModeVisualizer.font.color.absolute', '#999999');
+        const colorRelative = vscode.workspace
+            .getConfiguration()
+            .get('vimModeVisualizer.font.color.relative', '#858585');
+        const fontWeight = vscode.workspace
+            .getConfiguration()
+            .get('vimModeVisualizer.font.weight', 'bold');
+        const fontFamily = vscode.workspace
+            .getConfiguration()
+            .get('vimModeVisualizer.font.family', 'Menlo, Monaco, Courier New, monospace');
+        
+        // 各テキストに幅を制限（50px = 100/2）
+        const textLength = vscode.workspace
+            .getConfiguration()
+            .get('vimModeVisualizer.text.width', '50');
+        const fontSize = vscode.workspace
+            .getConfiguration()
+            .get('vimModeVisualizer.text.height', '55');
+        
+        // 絶対行番号と相対行番号を横並びで配置
+        const absText = absLine.toString().padStart(2, '\u00A0');
+        const relText = relDist.toString().padStart(2, '\u00A0');
+        
+        // 1つのセル内に左右に配置（各25px間隔）
+        const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+            <text x="25" y="50" textLength="${textLength}" lengthAdjust="${lengthAdjust}" font-weight="${fontWeight}" font-size="${fontSize}" font-family="${fontFamily}" fill="${colorAbsolute}" text-anchor="${textAnchor}" dominant-baseline="${dominantBaseline}">${absText}</text>
+            <text x="75" y="50" textLength="${textLength}" lengthAdjust="${lengthAdjust}" font-weight="${fontWeight}" font-size="${fontSize}" font-family="${fontFamily}" fill="${colorRelative}" text-anchor="${textAnchor}" dominant-baseline="${dominantBaseline}">${relText}</text>
+        </svg>`;
+        
+        return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+    }
+
+    private createHybridDecorType(absLine: number, relDist: number): vscode.TextEditorDecorationType {
+        return vscode.window.createTextEditorDecorationType({
+            gutterIconPath: vscode.Uri.parse(this.createHybridSvgUri(absLine, relDist)),
+            gutterIconSize: 'cover',
+        });
+    }
+
+    private updateHybridLineNumbers(editor: vscode.TextEditor) {
+        const start = Math.max(editor.visibleRanges[0].start.line - 1, 0);
+        const end = Math.min(
+            editor.visibleRanges[0].end.line + 1,
+            editor.document.lineCount - 1
+        );
+        const activeLine = editor.selection.active.line;
+
+        if (!this.decorTypeMap.has(editor)) {
+            this.decorTypeMap.set(editor, new Map());
+        }
+        if (!this.decorNumMap.has(editor)) {
+            this.decorNumMap.set(editor, new Map());
+        }
+
+        for (let i = start; i <= end; ++i) {
+            const relDist = Math.abs(activeLine - i);
+            const absLine = i + 1;  // 1-indexed
+            const key = `${absLine}:${relDist}`;  // キャッシュキー
+
+            if (this.decorNumMap.get(editor)!.get(i) !== key) {
+                this.decorTypeMap.get(editor)!.get(i)?.dispose();
+                this.decorTypeMap.get(editor)!.set(i, this.createHybridDecorType(absLine, relDist));
+                this.decorNumMap.get(editor)!.set(i, key);
+            }
+        }
+
+        for (let i = start; i <= end; ++i) {
+            if (this.decorNumMap.get(editor)!.has(i)) {
+                editor.setDecorations(this.decorTypeMap.get(editor)!.get(i)!, [
+                    new vscode.Range(i, 0, i, 0),
+                ]);
+            }
+        }
+    }
+
+    showHybridLineNumbers(editor: vscode.TextEditor) {
+        this.updateDecorDebounced(editor);
+    }
+
     private createDecorType(num: number): vscode.TextEditorDecorationType {
         if (num > 0) {
             return vscode.window.createTextEditorDecorationType({
@@ -270,8 +382,8 @@ export class DecorationManager {
     }
 
     showRelativeLineNumbers(editor: vscode.TextEditor) {
-        console.log('RELATIVE CALLED');
-        this.updateDecorDebounced(editor);
+        // ハイブリッドモードで実装
+        this.showHybridLineNumbers(editor);
     }
 
     clearRelativeNumbers(editor: vscode.TextEditor) {
