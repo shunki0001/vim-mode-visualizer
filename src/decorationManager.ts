@@ -209,50 +209,63 @@ export class DecorationManager {
     }
 
     private getSvgUri(num: number): string {
-        const width = 100;
+        // ガター幅を設定から取得 (px)。数値または文字列を許容。
+        const gutterWidthConf = vscode.workspace
+            .getConfiguration()
+            .get('vimModeVisualizer.gutter.width', 140);
+        const width = typeof gutterWidthConf === 'number' ? gutterWidthConf : parseInt(gutterWidthConf as any, 10) || 140;
         const height = 100;
         const x = width / 2;
         const y = height / 2;
         const lengthAdjust = 'spacingAndGlyphs';
         const textAnchor = 'middle';
         const dominantBaseline = 'central';
-        const fill = encodeURIComponent(
-            vscode.workspace
-                .getConfiguration()
-                .get('vscode-double-line-numbers.font.color', '#858585')
-        );
+
+        const fill = vscode.workspace
+            .getConfiguration()
+            .get('vimModeVisualizer.font.color.relative', '#858585');
         const fontWeight = vscode.workspace
             .getConfiguration()
-            .get('vscode-double-line-numbers.font.weight', '400');
+            .get('vimModeVisualizer.font.weight', '400');
         const fontFamily = vscode.workspace
             .getConfiguration()
             .get(
-                'vscode-double-line-numbers.font.family',
+                'vimModeVisualizer.font.family',
                 vscode.workspace.getConfiguration().get('editor.fontFamily', 'monospace')
             );
         const textLength = vscode.workspace
             .getConfiguration()
-            .get('vscode-double-line-numbers.text.width', '80');
+            .get('vimModeVisualizer.text.width', '80');
         const fontSize = vscode.workspace
             .getConfiguration()
-            .get('vscode-double-line-numbers.text.height', '75');
+            .get('vimModeVisualizer.text.height', '75');
 
-        return `data:image/svg+xml;utf8,<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg"><text x="${x}" y="${y}" textLength="${textLength}" lengthAdjust="${lengthAdjust}" font-weight="${fontWeight}" font-size="${fontSize}" font-family="${fontFamily}" fill="${fill}" text-anchor="${textAnchor}" dominant-baseline="${dominantBaseline}">${num
-            .toString()
-            .padStart(3, '\u00A0')}</text></svg>`;
+        const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg"><text x="${x}" y="${y}" textLength="${textLength}" lengthAdjust="${lengthAdjust}" font-weight="${fontWeight}" font-size="${fontSize}" font-family="${fontFamily}" fill="${fill}" text-anchor="${textAnchor}" dominant-baseline="${dominantBaseline}">${num.toString().padStart(3, '\u00A0')}</text></svg>`;
+
+        return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
     }
 
     private createHybridSvgUri(absLine: number, relDist: number): string {
-        // 参考: vscode-double-line-numbers のアプローチを採用
-        // 1つの100x100セル内に2つのテキストを左右に配置
-        
-        const width = 100;
-        const height = 100;
+        // ガター幅・フォント設定に応じて左右の配置とtextLengthを自動計算する
+        const gutterWidthConf = vscode.workspace
+            .getConfiguration()
+            .get('vimModeVisualizer.gutter.width', 140);
+        const width = typeof gutterWidthConf === 'number' ? gutterWidthConf : parseInt(gutterWidthConf as any, 10) || 140;
+
+        const textLengthConf = vscode.workspace
+            .getConfiguration()
+            .get('vimModeVisualizer.text.width', '50');
+        const fontSizeConf = vscode.workspace
+            .getConfiguration()
+            .get('vimModeVisualizer.text.height', '55');
+
+        const fontSize = typeof fontSizeConf === 'number' ? fontSizeConf : parseInt(fontSizeConf as any, 10) || 70;
+        const height = Math.max(100, Math.ceil(fontSize * 1.8));
+
         const lengthAdjust = 'spacingAndGlyphs';
         const textAnchor = 'middle';
         const dominantBaseline = 'central';
-        
-        // 設定から値を取得
+
         const colorAbsolute = vscode.workspace
             .getConfiguration()
             .get('vimModeVisualizer.font.color.absolute', '#999999');
@@ -265,32 +278,35 @@ export class DecorationManager {
         const fontFamily = vscode.workspace
             .getConfiguration()
             .get('vimModeVisualizer.font.family', 'Menlo, Monaco, Courier New, monospace');
-        
-        // 各テキストに幅を制限（50px = 100/2）
-        const textLength = vscode.workspace
-            .getConfiguration()
-            .get('vimModeVisualizer.text.width', '50');
-        const fontSize = vscode.workspace
-            .getConfiguration()
-            .get('vimModeVisualizer.text.height', '55');
-        
-        // 絶対行番号と相対行番号を横並びで配置
+
+        // 各列はガター幅の半分を割り当てる
+        const half = width / 2;
+        const sidePadding = 4; // 片側の余白（最小限）
+        const availablePerSide = Math.max(0, half - sidePadding * 2);
+
+        const desiredTextLength = typeof textLengthConf === 'number' ? textLengthConf : parseInt(textLengthConf as any, 10) || Math.floor(availablePerSide);
+        const textLength = Math.floor(Math.max(desiredTextLength, availablePerSide * 0.9));
+
+        // 左右の中心 X 座標を半分幅に基づいて自動計算
+        const leftX = Math.round(half / 2);
+        const rightX = Math.round(half + half / 2);
+        const y = Math.round(height / 2);
+
         const absText = absLine.toString().padStart(2, '\u00A0');
         const relText = relDist.toString().padStart(2, '\u00A0');
-        
-        // 1つのセル内に左右に配置（各25px間隔）
+
         const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-            <text x="25" y="50" textLength="${textLength}" lengthAdjust="${lengthAdjust}" font-weight="${fontWeight}" font-size="${fontSize}" font-family="${fontFamily}" fill="${colorAbsolute}" text-anchor="${textAnchor}" dominant-baseline="${dominantBaseline}">${absText}</text>
-            <text x="75" y="50" textLength="${textLength}" lengthAdjust="${lengthAdjust}" font-weight="${fontWeight}" font-size="${fontSize}" font-family="${fontFamily}" fill="${colorRelative}" text-anchor="${textAnchor}" dominant-baseline="${dominantBaseline}">${relText}</text>
+            <text x="${leftX}" y="${y}" textLength="${textLength}" lengthAdjust="${lengthAdjust}" font-weight="${fontWeight}" font-size="${fontSize}" font-family="${fontFamily}" fill="${colorAbsolute}" text-anchor="${textAnchor}" dominant-baseline="${dominantBaseline}">${absText}</text>
+            <text x="${rightX}" y="${y}" textLength="${textLength}" lengthAdjust="${lengthAdjust}" font-weight="${fontWeight}" font-size="${fontSize}" font-family="${fontFamily}" fill="${colorRelative}" text-anchor="${textAnchor}" dominant-baseline="${dominantBaseline}">${relText}</text>
         </svg>`;
-        
+
         return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
     }
 
     private createHybridDecorType(absLine: number, relDist: number): vscode.TextEditorDecorationType {
         return vscode.window.createTextEditorDecorationType({
             gutterIconPath: vscode.Uri.parse(this.createHybridSvgUri(absLine, relDist)),
-            gutterIconSize: 'cover',
+            gutterIconSize: 'contain',
         });
     }
 
@@ -338,7 +354,7 @@ export class DecorationManager {
         if (num > 0) {
             return vscode.window.createTextEditorDecorationType({
                 gutterIconPath: vscode.Uri.parse(this.getSvgUri(num)),
-                gutterIconSize: 'cover',
+                gutterIconSize: 'contain',
             });
         } else {
             return vscode.window.createTextEditorDecorationType({});
