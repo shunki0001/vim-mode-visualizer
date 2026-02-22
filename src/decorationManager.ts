@@ -181,9 +181,9 @@ export class DecorationManager {
         const delayTime = vscode.workspace
             .getConfiguration()
             .get('vimModeVisualizer.delay', 50);
-        // ハイブリッドモード用にupdateHybridLineNumbersをデフォルトに
+        // 相対行のみ表示するようにupdateRelativeLineNumbersを使用
         this.updateDecorDebounced = this.debounce(
-            this.updateHybridLineNumbers.bind(this),
+            this.updateRelativeLineNumbers.bind(this),
             delayTime
         );
     }
@@ -208,153 +208,62 @@ export class DecorationManager {
         };
     }
 
-    private getSvgUri(num: number): string {
-        // ガター幅を設定から取得 (px)。数値または文字列を許容。
-        const gutterWidthConf = vscode.workspace
-            .getConfiguration()
-            .get('vimModeVisualizer.gutter.width', 140);
-        const width = typeof gutterWidthConf === 'number' ? gutterWidthConf : parseInt(gutterWidthConf as any, 10) || 140;
-        const height = 100;
-        const x = width / 2;
+    private getSvgUri(num: number, isActive: boolean = false): string {
+
+        const config = vscode.workspace.getConfiguration('editor');
+
+        const fontSize = Number(config.get('fontSize', 14));
+        const lineHeight = Number(config.get('lineHeight', 0)) || Math.round(fontSize * 1.6);
+        const fontFamily = config.get('fontFamily', 'monospace');
+
+        const width = 40 + String(num).length * fontSize * 0.6; // 桁数で自動幅
+        const height = lineHeight;
+
+        const x = width - 4;
         const y = height / 2;
-        const lengthAdjust = 'spacingAndGlyphs';
-        const textAnchor = 'middle';
-        const dominantBaseline = 'central';
+
+        const color = isActive
+            ? "#cccccc"     // カーソル行(絶対行)
+            : "#858585";    // 相対行
+        
+        const fontWeight = isActive
+            ? "600"
+            : "400";
+
+        const lineNumber = String(num);
 
         const fill = vscode.workspace
             .getConfiguration()
             .get('vimModeVisualizer.font.color.relative', '#858585');
-        const fontWeight = vscode.workspace
-            .getConfiguration()
-            .get('vimModeVisualizer.font.weight', '400');
-        const fontFamily = vscode.workspace
-            .getConfiguration()
-            .get(
-                'vimModeVisualizer.font.family',
-                vscode.workspace.getConfiguration().get('editor.fontFamily', 'monospace')
-            );
-        const textLength = vscode.workspace
-            .getConfiguration()
-            .get('vimModeVisualizer.text.width', '80');
-        const fontSize = vscode.workspace
-            .getConfiguration()
-            .get('vimModeVisualizer.text.height', '75');
 
-        const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg"><text x="${x}" y="${y}" textLength="${textLength}" lengthAdjust="${lengthAdjust}" font-weight="${fontWeight}" font-size="${fontSize}" font-family="${fontFamily}" fill="${fill}" text-anchor="${textAnchor}" dominant-baseline="${dominantBaseline}">${num.toString().padStart(3, '\u00A0')}</text></svg>`;
-
-        return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-    }
-
-    private createHybridSvgUri(absLine: number, relDist: number): string {
-        // ガター幅・フォント設定に応じて左右の配置とtextLengthを自動計算する
-        const gutterWidthConf = vscode.workspace
-            .getConfiguration()
-            .get('vimModeVisualizer.gutter.width', 140);
-        const width = typeof gutterWidthConf === 'number' ? gutterWidthConf : parseInt(gutterWidthConf as any, 10) || 140;
-
-        const textLengthConf = vscode.workspace
-            .getConfiguration()
-            .get('vimModeVisualizer.text.width', '50');
-        const fontSizeConf = vscode.workspace
-            .getConfiguration()
-            .get('vimModeVisualizer.text.height', '55');
-
-        const fontSize = typeof fontSizeConf === 'number' ? fontSizeConf : parseInt(fontSizeConf as any, 10) || 70;
-        const height = Math.max(100, Math.ceil(fontSize * 1.8));
-
-        const lengthAdjust = 'spacingAndGlyphs';
-        const textAnchor = 'middle';
-        const dominantBaseline = 'central';
-
-        const colorAbsolute = vscode.workspace
-            .getConfiguration()
-            .get('vimModeVisualizer.font.color.absolute', '#999999');
-        const colorRelative = vscode.workspace
-            .getConfiguration()
-            .get('vimModeVisualizer.font.color.relative', '#858585');
-        const fontWeight = vscode.workspace
-            .getConfiguration()
-            .get('vimModeVisualizer.font.weight', 'bold');
-        const fontFamily = vscode.workspace
-            .getConfiguration()
-            .get('vimModeVisualizer.font.family', 'Menlo, Monaco, Courier New, monospace');
-
-        // 各列はガター幅の半分を割り当てる
-        const half = width / 2;
-        const sidePadding = 4; // 片側の余白（最小限）
-        const availablePerSide = Math.max(0, half - sidePadding * 2);
-
-        const desiredTextLength = typeof textLengthConf === 'number' ? textLengthConf : parseInt(textLengthConf as any, 10) || Math.floor(availablePerSide);
-        const textLength = Math.floor(Math.max(desiredTextLength, availablePerSide * 0.9));
-
-        // 左右の中心 X 座標を半分幅に基づいて自動計算
-        const leftX = Math.round(half / 2);
-        const rightX = Math.round(half + half / 2);
-        const y = Math.round(height / 2);
-
-        const absText = absLine.toString().padStart(2, '\u00A0');
-        const relText = relDist.toString().padStart(2, '\u00A0');
-
-        const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-            <text x="${leftX}" y="${y}" textLength="${textLength}" lengthAdjust="${lengthAdjust}" font-weight="${fontWeight}" font-size="${fontSize}" font-family="${fontFamily}" fill="${colorAbsolute}" text-anchor="${textAnchor}" dominant-baseline="${dominantBaseline}">${absText}</text>
-            <text x="${rightX}" y="${y}" textLength="${textLength}" lengthAdjust="${lengthAdjust}" font-weight="${fontWeight}" font-size="${fontSize}" font-family="${fontFamily}" fill="${colorRelative}" text-anchor="${textAnchor}" dominant-baseline="${dominantBaseline}">${relText}</text>
-        </svg>`;
+        const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg"
+            width="${width}"
+            height="${height}"
+            viewBox="0 0 ${width} ${height}">
+        <text
+            x="${width - 4}"
+            y="${height / 2}"
+            dominant-baseline="middle"
+            text-anchor="end"
+            font-size="${fontSize * 1.2}px"
+            fill="${color}"
+            font-family="${fontFamily}"
+            font-weight="${fontWeight}"
+        >
+            ${lineNumber}
+        </text>
+        </svg>
+        `;
 
         return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-    }
-
-    private createHybridDecorType(absLine: number, relDist: number): vscode.TextEditorDecorationType {
-        return vscode.window.createTextEditorDecorationType({
-            gutterIconPath: vscode.Uri.parse(this.createHybridSvgUri(absLine, relDist)),
-            gutterIconSize: 'contain',
-        });
-    }
-
-    private updateHybridLineNumbers(editor: vscode.TextEditor) {
-        const start = Math.max(editor.visibleRanges[0].start.line - 1, 0);
-        const end = Math.min(
-            editor.visibleRanges[0].end.line + 1,
-            editor.document.lineCount - 1
-        );
-        const activeLine = editor.selection.active.line;
-
-        if (!this.decorTypeMap.has(editor)) {
-            this.decorTypeMap.set(editor, new Map());
-        }
-        if (!this.decorNumMap.has(editor)) {
-            this.decorNumMap.set(editor, new Map());
-        }
-
-        for (let i = start; i <= end; ++i) {
-            const relDist = Math.abs(activeLine - i);
-            const absLine = i + 1;  // 1-indexed
-            const key = `${absLine}:${relDist}`;  // キャッシュキー
-
-            if (this.decorNumMap.get(editor)!.get(i) !== key) {
-                this.decorTypeMap.get(editor)!.get(i)?.dispose();
-                this.decorTypeMap.get(editor)!.set(i, this.createHybridDecorType(absLine, relDist));
-                this.decorNumMap.get(editor)!.set(i, key);
-            }
-        }
-
-        for (let i = start; i <= end; ++i) {
-            if (this.decorNumMap.get(editor)!.has(i)) {
-                editor.setDecorations(this.decorTypeMap.get(editor)!.get(i)!, [
-                    new vscode.Range(i, 0, i, 0),
-                ]);
-            }
-        }
-    }
-
-    showHybridLineNumbers(editor: vscode.TextEditor) {
-        this.updateDecorDebounced(editor);
     }
 
     private createDecorType(num: number): vscode.TextEditorDecorationType {
         if (num > 0) {
             return vscode.window.createTextEditorDecorationType({
                 gutterIconPath: vscode.Uri.parse(this.getSvgUri(num)),
-                gutterIconSize: 'contain',
+                gutterIconSize: '100%',
             });
         } else {
             return vscode.window.createTextEditorDecorationType({});
@@ -378,14 +287,18 @@ export class DecorationManager {
             this.decorNumMap.set(editor, new Map());
         }
 
+        // 前回のデコレーションをすべてクリア
+        const prevDecorTypes = this.decorTypeMap.get(editor)!;
+        prevDecorTypes.forEach((decor) => {
+            decor.dispose();
+        });
+        prevDecorTypes.clear();
+        this.decorNumMap.get(editor)!.clear();
+
         for (let i = start; i <= end; ++i) {
             const num = Math.abs(activeLine - i);
-
-            if (this.decorNumMap.get(editor)!.get(i) !== num) {
-                this.decorTypeMap.get(editor)!.get(i)?.dispose();
-                this.decorTypeMap.get(editor)!.set(i, this.createDecorType(num));
-                this.decorNumMap.get(editor)!.set(i, num);
-            }
+            this.decorTypeMap.get(editor)!.set(i, this.createDecorType(num));
+            this.decorNumMap.get(editor)!.set(i, num);
         }
 
         for (let i = start; i <= end; ++i) {
@@ -398,8 +311,8 @@ export class DecorationManager {
     }
 
     showRelativeLineNumbers(editor: vscode.TextEditor) {
-        // ハイブリッドモードで実装
-        this.showHybridLineNumbers(editor);
+        // 相対行のみ表示する実装で debounce を適用
+        this.updateDecorDebounced(editor);
     }
 
     clearRelativeNumbers(editor: vscode.TextEditor) {

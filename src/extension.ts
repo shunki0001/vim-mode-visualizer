@@ -18,7 +18,7 @@ export function activate(context: vscode.ExtensionContext) {
   // ハイブリッドモード: 標準行番号を無効化してカスタムSVGで表示
   vscode.workspace.getConfiguration().update(
     'editor.lineNumbers',
-    'off',
+    'on',
     vscode.ConfigurationTarget.Workspace
   ).then(() => {
     console.log('Hybrid mode enabled');

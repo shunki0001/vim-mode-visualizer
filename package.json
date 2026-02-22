@@ -70,17 +70,17 @@
         },
         "vimModeVisualizer.text.width": {
           "type": "string",
-          "default": "60",
+          "default": "20",
           "markdownDescription": "Text width for each line number (SVG textLength attribute)"
         },
         "vimModeVisualizer.text.height": {
           "type": "string",
-          "default": "70",
+          "default": "14",
           "markdownDescription": "Font size for line numbers (in pixels)"
         },
         "vimModeVisualizer.gutter.width": {
           "type": "number",
-          "default": 200,
+          "default": 40,
           "markdownDescription": "Gutter SVG width in pixels. Increase to add horizontal space between number columns."
         },
         "vimModeVisualizer.delay": {
