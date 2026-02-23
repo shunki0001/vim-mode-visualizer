@@ -25,8 +25,10 @@ export function activate(context: vscode.ExtensionContext) {
 
   // ===== Selection Change (ONLY ONCE) =====
   const selectionListener =
-    vscode.window.onDidChangeTextEditorSelection(() => {
+    vscode.window.onDidChangeTextEditorSelection((event) => {
       modeController?.handleSelectionChange();
+      decorations.showAbsoluteNumbers(event.textEditor);
+      // decorations.showRelativeNumbers(event.textEditor);
     });
 
   context.subscriptions.push(

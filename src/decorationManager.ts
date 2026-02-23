@@ -10,6 +10,8 @@ type InlineColors = {
 export class DecorationManager {
     private inlineDecoration?: vscode.TextEditorDecorationType;
     private hideTimer?: NodeJS.Timeout;
+    private absoluteLineNumbers: vscode.TextEditorDecorationType;
+    // private relativeDecoration: vscode.TextEditorDecorationType;
 
     showInlineOnce(
         editor: vscode.TextEditor,
@@ -83,6 +85,20 @@ export class DecorationManager {
                 margin: '0 4px 0 0',
             },
         });
+
+        this.absoluteLineNumbers = vscode.window.createTextEditorDecorationType({
+            before: {
+                color: "#888",
+                margin: "0 12px 0 0"
+            }
+        });
+
+        // this.relativeDecoration = vscode.window.createTextEditorDecorationType({
+        //     before: {
+        //         color: "#888",
+        //         margin: "0 12px 0 0"
+        //     } 
+        // });
     }
 
     clear(editor: vscode.TextEditor) {
@@ -120,6 +136,8 @@ export class DecorationManager {
         this.insertLine.dispose();
         this.visualLine.dispose();
         this.visualBlock.dispose();
+        this.absoluteLineNumbers.dispose();
+        // this.relativeDecoration.dispose();
     }
 
     applyModeHighlight(editor: vscode.TextEditor, mode: VimMode) {
@@ -145,4 +163,59 @@ export class DecorationManager {
                 break;
         }
     }
+
+        showAbsoluteNumbers(editor: vscode.TextEditor) {
+            const decorations: vscode.DecorationOptions[] = [];
+
+            for (let i = 0; i < editor.document.lineCount; i++) {
+                const line = editor.document.lineAt(i);
+
+                decorations.push({
+                    range: line.range,
+                    renderOptions: {
+                        before: {
+                            contentText: String(i + 1)
+                        }
+                    }
+                });
+            }
+
+            editor.setDecorations(this.absoluteLineNumbers, decorations);
+        }
+
+    // showRelativeNumbers(editor: vscode.TextEditor) {
+    //     const decorations: vscode.DecorationOptions[] = [];
+    //     const cursorLine = editor.selection.active.line;
+
+    //     const maxDigits = String(editor.document.lineCount).length;
+    //     const offsetCh =  maxDigits + 2;
+    //     const gap = 1; 
+
+    //     for (let i = 0; i < editor.document.lineCount; i++) {
+    //         // if (i === cursorLine) {
+    //         //     continue;
+    //         // }
+
+    //         const line = editor.document.lineAt(i);
+    //         const relative = Math.abs(i - cursorLine);
+            
+    //         decorations.push({
+    //             range: line.range,
+    //             renderOptions: {
+    //                 before: {
+    //                     // contentText: String(relative),
+    //                     contentText: String(relative).padStart(maxDigits, ' '),
+    //                     width: `${offsetCh}ch`,
+    //                     margin: `0 0 0 -${offsetCh}ch`,
+    //                     color: "#888",
+    //                     textDecoration: "none; text-align: right;"
+    //                 }
+    //             }
+    //         });
+    //     }
+
+    //     editor.setDecorations(this.relativeDecoration, decorations);
+    // }
+    
+
 }
