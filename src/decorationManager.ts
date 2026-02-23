@@ -10,8 +10,6 @@ type InlineColors = {
 export class DecorationManager {
     private inlineDecoration?: vscode.TextEditorDecorationType;
     private hideTimer?: NodeJS.Timeout;
-    private absoluteLineNumbers: vscode.TextEditorDecorationType;
-    // private relativeDecoration: vscode.TextEditorDecorationType;
 
     showInlineOnce(
         editor: vscode.TextEditor,
@@ -36,8 +34,6 @@ export class DecorationManager {
                     margin: '0 0 0 1rem',
                     fontStyle: 'italic',
                 },
-                // backgroundColor: colors.background,
-                // color: colors.foreground,
             });
         
         const line = editor.selection.active.line;
@@ -86,19 +82,6 @@ export class DecorationManager {
             },
         });
 
-        this.absoluteLineNumbers = vscode.window.createTextEditorDecorationType({
-            before: {
-                color: "#888",
-                margin: "0 12px 0 0"
-            }
-        });
-
-        // this.relativeDecoration = vscode.window.createTextEditorDecorationType({
-        //     before: {
-        //         color: "#888",
-        //         margin: "0 12px 0 0"
-        //     } 
-        // });
     }
 
     clear(editor: vscode.TextEditor) {
@@ -136,8 +119,6 @@ export class DecorationManager {
         this.insertLine.dispose();
         this.visualLine.dispose();
         this.visualBlock.dispose();
-        this.absoluteLineNumbers.dispose();
-        // this.relativeDecoration.dispose();
     }
 
     applyModeHighlight(editor: vscode.TextEditor, mode: VimMode) {
@@ -164,58 +145,43 @@ export class DecorationManager {
         }
     }
 
-        showAbsoluteNumbers(editor: vscode.TextEditor) {
-            const decorations: vscode.DecorationOptions[] = [];
 
-            for (let i = 0; i < editor.document.lineCount; i++) {
-                const line = editor.document.lineAt(i);
+    createLineNumberDecoration(num: number) {
+        return vscode.window.createTextEditorDecorationType({
+            gutterIconPath: vscode.Uri.parse(getSvgUri(num)),
+            gutterIconSize: "contain",
+        });
+    }
 
-                decorations.push({
-                    range: line.range,
-                    renderOptions: {
-                        before: {
-                            contentText: String(i + 1)
-                        }
-                    }
-                });
-            }
+    showHybridLineNumbers(editor: vscode.TextEditor) {
+        const cursorLine = editor.selection.active.line;
+        const lineCount = editor.document.lineCount;
 
-            editor.setDecorations(this.absoluteLineNumbers, decorations);
-        }
+        const decorationMap = new Map<number, vscode.TextEditorDecorationType>();
 
-    // showRelativeNumbers(editor: vscode.TextEditor) {
-    //     const decorations: vscode.DecorationOptions[] = [];
-    //     const cursorLine = editor.selection.active.line;
-
-    //     const maxDigits = String(editor.document.lineCount).length;
-    //     const offsetCh =  maxDigits + 2;
-    //     const gap = 1; 
-
-    //     for (let i = 0; i < editor.document.lineCount; i++) {
-    //         // if (i === cursorLine) {
-    //         //     continue;
-    //         // }
-
-    //         const line = editor.document.lineAt(i);
-    //         const relative = Math.abs(i - cursorLine);
+        for (let i = 0; i < lineCount; i++) {
+            const relative = Math.abs(i - cursorLine);
+            const numberToShow = (i === cursorLine)
+                ? (i + 1)   // カーソル行(絶対)
+                : relative; // それ以外(相対)
             
-    //         decorations.push({
-    //             range: line.range,
-    //             renderOptions: {
-    //                 before: {
-    //                     // contentText: String(relative),
-    //                     contentText: String(relative).padStart(maxDigits, ' '),
-    //                     width: `${offsetCh}ch`,
-    //                     margin: `0 0 0 -${offsetCh}ch`,
-    //                     color: "#888",
-    //                     textDecoration: "none; text-align: right;"
-    //                 }
-    //             }
-    //         });
-    //     }
+                let deco = decorationMap.get(numberToShow);
 
-    //     editor.setDecorations(this.relativeDecoration, decorations);
-    // }
-    
+                if (!deco) {
+                    deco = this.createLineNumberDecoration(numberToShow);
+                    decorationMap.set(numberToShow, deco);
+                }
 
+                const range = new vscode.Range(i, 0, i, 0);
+                editor.setDecorations(deco, [{range}]);
+        }
+    }
+}
+
+function getSvgUri(num: number) {
+    return `data:image/svg+xml;utf8,
+    <svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
+        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
+        font-size="60" fill="#888">${num}</text>
+    </svg>`;
 }

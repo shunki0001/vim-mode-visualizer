@@ -27,8 +27,6 @@ export function activate(context: vscode.ExtensionContext) {
   const selectionListener =
     vscode.window.onDidChangeTextEditorSelection((event) => {
       modeController?.handleSelectionChange();
-      decorations.showAbsoluteNumbers(event.textEditor);
-      // decorations.showRelativeNumbers(event.textEditor);
     });
 
   context.subscriptions.push(
@@ -36,4 +34,22 @@ export function activate(context: vscode.ExtensionContext) {
     selectionListener,
     modeController
   );
+
+  const updateNumbers = () => {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      return;
+    }
+
+    decorations.showHybridLineNumbers(editor);
+  }
+
+  updateNumbers();
+
+  const cursorListener = 
+    vscode.window.onDidChangeTextEditorSelection(() => {
+      updateNumbers();
+    });
+
+  context.subscriptions.push(cursorListener);
 }
