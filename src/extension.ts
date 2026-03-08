@@ -2,14 +2,16 @@ import * as vscode from 'vscode';
 import { DecorationManager } from './decorationManager';
 import { ConfigService } from './configService';
 import { ModeController } from './modeController';
+import { LineNumberMode } from './lineNumberMode';
 
 let modeController: ModeController | undefined;
 let decorationType: vscode.TextEditorDecorationType;
+let configService: ConfigService;
 
 export function activate(context: vscode.ExtensionContext) {
 
   const decorations = new DecorationManager();
-  const configService = new ConfigService();
+  configService = new ConfigService();
 
   modeController = new ModeController(
     decorations,
@@ -65,6 +67,13 @@ function updateLineNumbers() {
     return;
   }
   
+  const mode = configService.getLineNumberMode();
+
+  if (mode === LineNumberMode.OFF) {
+    editor.setDecorations(decorationType, []);
+    return;
+  }
+  
   const activeLine = editor.selection.active.line;
   const visibleRange = editor.visibleRanges[0];
 
@@ -77,12 +86,13 @@ function updateLineNumbers() {
     const absolute = line + 1;
     const relative = Math.abs(activeLine - line);
 
-    const text = `${absolute} ${relative}`;
+    // const text = `${absolute} ${relative}`;
 
-    // const text = 
-    //   absolute.toString().padStart(4, ' ') +
-    //   ' ' +
-    //   relative.toString().padStart(3, ' ');
+    const text = buildLineNumberText(
+      mode,
+      absolute,
+      relative
+    );
 
     decorations.push({
       range: new vscode.Range(line, 0, line, 0),
@@ -95,4 +105,28 @@ function updateLineNumbers() {
   }
 
   editor.setDecorations(decorationType, decorations);
+}
+
+function buildLineNumberText(
+  mode: LineNumberMode,
+  absolute: number,
+  relative: number
+): string {
+  switch (mode) {
+    case LineNumberMode.ABS_REL:
+      return `${absolute} ${relative}`;
+    case LineNumberMode.REL_ABS:
+      return `${absolute} ${relative}`;
+    case LineNumberMode.ABS:
+      return `${absolute}`;
+    case LineNumberMode.REL:
+      return `${absolute}`;
+
+    case LineNumberMode.OFF:
+      return '';
+
+    default:
+      return `${absolute}`;
+
+  }
 }
