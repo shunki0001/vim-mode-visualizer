@@ -41,6 +41,18 @@
           "type": "boolean",
           "default": true,
           "description": "Enable inline mode indicator near the cursor"
+        },
+        "vimModeVisualizer.lineNumberMode": {
+          "type": "string",
+          "default": "abs_rel",
+          "enum": [
+            "abs_rel",
+            "rel_abs",
+            "abs",
+            "rel",
+            "off"
+          ],
+          "description": "Line number display mode"
         }
       }
     },
