@@ -28,6 +28,7 @@ export function activate(context: vscode.ExtensionContext) {
   const selectionListener =
     vscode.window.onDidChangeTextEditorSelection(() => {
       modeController?.handleSelectionChange();
+      updateLineNumbers();
     });
 
   context.subscriptions.push(
@@ -42,11 +43,16 @@ export function activate(context: vscode.ExtensionContext) {
       color: '#888'
     }
   });
+  
+  vscode.workspace.onDidChangeConfiguration((event) => {
+    if (event.affectsConfiguration("vimModeVisualizer.lineNumberMode")) {
+      updateLineNumbers();
+    }
+  })
 
   updateLineNumbers();
 
   context.subscriptions.push(
-    vscode.window.onDidChangeTextEditorSelection(updateLineNumbers),
     vscode.window.onDidChangeTextEditorVisibleRanges(updateLineNumbers),
     vscode.window.onDidChangeActiveTextEditor(updateLineNumbers)
   );
