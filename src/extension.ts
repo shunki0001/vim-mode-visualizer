@@ -7,10 +7,15 @@ import { LineNumberMode } from './lineNumberMode';
 let modeController: ModeController | undefined;
 let decorationType: vscode.TextEditorDecorationType;
 let configService: ConfigService;
+let lastActiveLine = -1;
+let lastStart = -1;
+let lastEnd = -1;
+let decorations: vscode.DecorationOptions[] = [];
+let updateTimer: NodeJS.Timeout | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
 
-  const decorations = new DecorationManager();
+  const decorationManager = new DecorationManager();
   const disposable = vscode.commands.registerCommand(
     "lineNumberMode.setLineNumberMode",
     async () => {
@@ -39,7 +44,7 @@ export function activate(context: vscode.ExtensionContext) {
   configService = new ConfigService();
 
   modeController = new ModeController(
-    decorations,
+    decorationManager,
     configService
   );
 
@@ -55,7 +60,8 @@ export function activate(context: vscode.ExtensionContext) {
   const selectionListener =
     vscode.window.onDidChangeTextEditorSelection(() => {
       modeController?.handleSelectionChange();
-      updateLineNumbers();
+      // updateLineNumbers();
+      scheduleUpdate();
     });
 
   context.subscriptions.push(
@@ -80,8 +86,10 @@ export function activate(context: vscode.ExtensionContext) {
   updateLineNumbers();
 
   context.subscriptions.push(
-    vscode.window.onDidChangeTextEditorVisibleRanges(updateLineNumbers),
-    vscode.window.onDidChangeActiveTextEditor(updateLineNumbers)
+    // vscode.window.onDidChangeTextEditorVisibleRanges(updateLineNumbers),
+    vscode.window.onDidChangeTextEditorVisibleRanges(scheduleUpdate),
+    // vscode.window.onDidChangeActiveTextEditor(updateLineNumbers)
+    vscode.window.onDidChangeActiveTextEditor(scheduleUpdate)
   );
 }
 
@@ -92,27 +100,45 @@ function updateLineNumbers() {
     return;
   }
   
-  const mode = configService.getLineNumberMode();
- 
+  // const mode = configService.getLineNumberMode();
+
   const activeLine = editor.selection.active.line;
   const visibleRange = editor.visibleRanges[0];
 
   const start = visibleRange.start.line;
   const end = visibleRange.end.line;
 
-  const decorations: vscode.DecorationOptions[] = [];
+  if (
+    activeLine === lastActiveLine &&
+    start === lastStart &&
+    end === lastEnd
+  ) {
+    return;
+  }
+
+  lastActiveLine = activeLine;
+  lastStart = start;
+  lastEnd = end;
+
+  // const decorations: vscode.DecorationOptions[] = [];
+
+  decorations.length = 0;
 
   for (let line = start; line <= end; line++) {
     const absolute = line + 1;
-    const relative = Math.abs(activeLine - line);
+    // const relative = Math.abs(activeLine - line);
+    const relative =
+      line > activeLine
+        ? line - activeLine
+        : activeLine - line;
 
-    // const text = `${absolute} ${relative}`;
-
-    const text = buildLineNumberText(
-      mode,
-      absolute,
-      relative
-    );
+    const text = `${absolute} ${relative}`;
+  
+  //   const text = buildLineNumberText(
+  //     mode,
+  //     absolute,
+  //     relative
+  //   );
 
     decorations.push({
       range: new vscode.Range(line, 0, line, 0),
@@ -142,4 +168,14 @@ function buildLineNumberText(
     case LineNumberMode.Hybrid:
       return `${absolute} ${relative}`;
   }
+}
+
+function scheduleUpdate() {
+  if (updateTimer) {
+    clearTimeout(updateTimer);
+  }
+  
+  updateTimer = setTimeout(() => {
+    updateLineNumbers();
+  }, 16);
 }
