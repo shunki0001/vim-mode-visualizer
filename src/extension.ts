@@ -60,7 +60,6 @@ export function activate(context: vscode.ExtensionContext) {
   const selectionListener =
     vscode.window.onDidChangeTextEditorSelection(() => {
       modeController?.handleSelectionChange();
-      // updateLineNumbers();
       scheduleUpdate();
     });
 
@@ -86,9 +85,7 @@ export function activate(context: vscode.ExtensionContext) {
   updateLineNumbers();
 
   context.subscriptions.push(
-    // vscode.window.onDidChangeTextEditorVisibleRanges(updateLineNumbers),
     vscode.window.onDidChangeTextEditorVisibleRanges(scheduleUpdate),
-    // vscode.window.onDidChangeActiveTextEditor(updateLineNumbers)
     vscode.window.onDidChangeActiveTextEditor(scheduleUpdate)
   );
 }
@@ -100,7 +97,6 @@ function updateLineNumbers() {
     return;
   }
   
-  // const mode = configService.getLineNumberMode();
 
   const activeLine = editor.selection.active.line;
   const visibleRange = editor.visibleRanges[0];
@@ -120,34 +116,48 @@ function updateLineNumbers() {
   lastStart = start;
   lastEnd = end;
 
-  // const decorations: vscode.DecorationOptions[] = [];
-
   decorations.length = 0;
 
-  for (let line = start; line <= end; line++) {
-    const absolute = line + 1;
-    // const relative = Math.abs(activeLine - line);
-    const relative =
-      line > activeLine
-        ? line - activeLine
-        : activeLine - line;
-
-    const text = `${absolute} ${relative}`;
+  // cursor line
+  if (activeLine >= start && activeLine <= end) {
+    decorations.push({
+      range: new vscode.Range(activeLine, 0, activeLine, 0),
+      renderOptions: {
+        before: {
+          contentText: `${activeLine + 1} 0`
+        }
+      }
+    });
+  }
   
-  //   const text = buildLineNumberText(
-  //     mode,
-  //     absolute,
-  //     relative
-  //   );
-
+  // Upward
+  let relative = 1;
+  for (let line = activeLine - 1; line >= start; line--) {
     decorations.push({
       range: new vscode.Range(line, 0, line, 0),
       renderOptions: {
         before: {
-          contentText: text
-        },
+          contentText: `${line + 1} ${relative}`
+        }
       }
     });
+    
+    relative++;
+  }
+
+  // Downward
+  relative = 1;
+  for (let line = activeLine + 1; line <= end; line++) {
+    decorations.push({
+      range: new vscode.Range(line, 0, line, 0),
+      renderOptions: {
+        before: {
+          contentText: `${line + 1} ${relative}`
+        }
+      }
+    });
+
+    relative++;
   }
 
   editor.setDecorations(decorationType, decorations);
