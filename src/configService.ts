@@ -18,7 +18,7 @@ export class ConfigService {
         
         return config.get<LineNumberMode>(
             "lineNumberMode",
-            LineNumberMode.ABS_REL
+            LineNumberMode.Absolute
         );
     }
 }

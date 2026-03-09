@@ -46,11 +46,9 @@
           "type": "string",
           "default": "abs_rel",
           "enum": [
-            "abs_rel",
-            "rel_abs",
-            "abs",
-            "rel",
-            "off"
+            "absolute",
+            "relative",
+            "hybrid"
           ],
           "description": "Line number display mode"
         }
@@ -60,6 +58,10 @@
       {
         "command": "vim-mode-visualizer.showMode",
         "title": "Show Vim Mode"
+      },
+      {
+        "command": "lineNumberMode.setLineNumberMode",
+        "title": "Line Number Visualizer: Set Line Number Mode"
       }
     ],
     "colors": [
