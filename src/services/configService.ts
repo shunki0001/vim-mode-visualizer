@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { LineNumberMode } from './lineNumberMode';
+import { LineNumberMode } from '../models/lineNumberMode';
 
 export class ConfigService {
     private config = vscode.workspace.getConfiguration('vimModeVisualizer');

@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import { DecorationManager } from './decorationManager';
-import { ConfigService } from './configService';
-import { ModeController } from './modeController';
-import { LineNumberMode } from './lineNumberMode';
-import { LineNumberController } from './lineNumberController';
+import { ConfigService } from './services/configService';
+import { ModeController } from './controller/modeController';
+import { LineNumberMode } from './models/lineNumberMode';
+import { LineNumberController } from './controller/lineNumberController';
 
 export function activate(context: vscode.ExtensionContext) {
 

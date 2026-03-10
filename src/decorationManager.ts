@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getSelectedLineRanges, getVisualBlockRanges } from './ranges';
+import { getSelectedLineRanges, getVisualBlockRanges } from './utils/ranges';
 import { VimMode } from './mode';
 
 type InlineColors = {
