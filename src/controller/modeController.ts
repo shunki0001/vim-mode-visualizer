@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { MODE_CONFIG, VimMode } from './mode';
-import { DecorationManager } from './decorationManager';
-import { ConfigService } from './configService';
+import { MODE_CONFIG, VimMode } from '../mode';
+import { DecorationManager } from '../decorationManager';
+import { ConfigService } from '../services/configService';
 import { scrypt } from 'crypto';
 
 export class ModeController implements vscode.Disposable {
