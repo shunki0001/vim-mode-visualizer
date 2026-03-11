@@ -9,7 +9,8 @@ export class LineNumberRenderer {
         this.decorationType = vscode.window.createTextEditorDecorationType({
             before: {
                 margin: '0 16px 0 0',
-                color: '#888'
+                color: '#888',
+                width: '60px'
             }
         });
     }
@@ -32,7 +33,8 @@ export class LineNumberRenderer {
                         contentText: this.buildText(
                             mode,
                             activeLine + 1,
-                            0
+                            0,
+                            end
                         )
                     }
                 }
@@ -50,7 +52,8 @@ export class LineNumberRenderer {
                         contentText: this.buildText(
                             mode,
                             line + 1,
-                            relative
+                            relative,
+                            end
                         )
                     }
                 }
@@ -70,7 +73,8 @@ export class LineNumberRenderer {
                         contentText: this.buildText(
                             mode,
                             line + 1,
-                            relative
+                            relative,
+                            end
                         )
                     }
                 }
@@ -85,19 +89,25 @@ export class LineNumberRenderer {
     private buildText(
         mode: LineNumberMode,
         absolute: number,
-        relative: number
+        relative: number,
+        end: number
     ): string {
+        
+        const maxLineDigits = end.toString().length;
+        
+        const abs = absolute.toString().padStart(maxLineDigits, " ");
+        const rel = relative.toString().padStart(maxLineDigits - 1, " ");
 
         switch (mode) {
 
             case LineNumberMode.Absolute:
-                return `${absolute}`;
+                return `${abs}`;
 
             case LineNumberMode.Relative:
-                return `${relative}`;
+                return `${rel}`;
 
             case LineNumberMode.Hybrid:
-                return `${absolute} ${relative}`;
+                return `${abs} ${rel}`;
         }
     }
 }
